@@ -6,6 +6,7 @@ server {
   }
 }
 customization {
+  #false foo
   name "foo"
   css {
     disable_default #true

@@ -131,7 +131,8 @@ pub fn validate_and_print(source:[]const u8) !void {
                 defer res.deinit(alloc);
                 var do_underline = false;
                 for (0..column-tok.len) |i| {
-                    do_underline = if (!do_underline and line[i] == ' ') false else true;
+                    //do_underline = if (!do_underline and line[i] == ' ') false else true;
+                    do_underline = (do_underline and line[i] != ' ');
                     try res.append(alloc, if (do_underline) '^' else ' ');
                 }
                 try res.appendSlice(alloc, "\x1b[1;36m");
