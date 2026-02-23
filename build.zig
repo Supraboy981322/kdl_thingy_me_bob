@@ -4,7 +4,7 @@ pub fn build(b: *std.Build) void {
     const bin = b.addExecutable(.{
         .name = "foo",
         .root_module = b.createModule(.{
-            .root_source_file = b.path("bar.zig"),
+            .root_source_file = b.path("src/main.zig"),
             .target = b.graph.host,
             .link_libc = true,
         }),
