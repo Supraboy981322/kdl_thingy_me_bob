@@ -4,10 +4,12 @@ const kdl = @import("kdl");
 pub fn main() !void {
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     const alloc = arena.allocator();
+
     const source = @embedFile("config.kdl");
-    var line_count:usize = 1;
+
     var og_lines = try std.ArrayList([]const u8).initCapacity(alloc, 0); 
-    var line_start:usize = 0;
+
+    var line_start:usize, var line_count:usize = .{ 0, 1 };
     for (source, 0..) |b, i| if (b == '\n') {
         const line = source[line_start..i];
         if (trim_space(line).len == 0) continue;
@@ -239,13 +241,16 @@ fn initial_validation(
                 const line = strung.items[line_start..i];
                 //add allocated line string
                 try res.append(allocator, try allocator.dupe(u8, line));
+                //add line with stripped ansi
                 const no_ansi = try strip_ansi(allocator, line);
                 try stripped.append(allocator, try allocator.dupe(u8, no_ansi));
+                //move line start to next line 
                 line_start = i+1;
             },
-            else => {},
+            else => {}, //ignore everything else
         };
         
+        //return slices reowned slices of results
         break :b .{
             try res.toOwnedSlice(allocator),
             try strung.toOwnedSlice(allocator),
