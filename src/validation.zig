@@ -4,6 +4,8 @@ const kdl = @import("kdl");
 const hlp = @import("helpers.zig");
 const globs = @import("globs.zig");
 
+const print = hlp.print;
+
 const colors = globs.colors;
 
 pub fn initial_validation(
@@ -15,7 +17,6 @@ pub fn initial_validation(
     const alloc = arena.allocator();
     //leak a tonne of memory then reset arena when fn returns 
     defer {
-        std.debug.print("nodes in initial validation arena: {d}\n", .{arena.state.end_index});
         _ = arena.reset(.free_all); arena.deinit();
     }
 

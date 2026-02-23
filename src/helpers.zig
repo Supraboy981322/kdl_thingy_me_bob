@@ -73,13 +73,19 @@ pub const print = struct {
     }
 };
 
+//helper to print each line from validation output 
 pub fn print_lines(lines:[]const []const u8) !void {
     for (lines) |l| try print.out("{s}\n", .{l});
 }
 
+//helper to validate then print from a source 
 pub fn validate_and_print(source:[]const u8) !void {
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     const alloc = arena.allocator();
+    defer { //nothing is freeed until fn returns (shouldn't run for that long)
+        if (!arena.reset(.free_all)) @panic("failed to reset arena");
+        arena.deinit();
+    }
 
     var og_lines = try std.ArrayList([]const u8).initCapacity(alloc, 0); 
 
@@ -109,7 +115,7 @@ pub fn validate_and_print(source:[]const u8) !void {
 
                 const og = if (cur.og[0] == '\n') cur.og[1..] else cur.og;
 
-                std.debug.print(
+                print.out(
                     "  \x1b[32mres:\x1b[0m\t{s}\n  \x1b[31mog:\x1b[0m \t{s}\n", .{cur.new, og}
                 );
             }
@@ -119,15 +125,15 @@ pub fn validate_and_print(source:[]const u8) !void {
             const line_no, const column = .{ tokenizer.line-1, tokenizer.column-1 };
             const line = og_lines.items[line_no];
             const tok = tokenizer.token_buffer.items[0..];
-            std.debug.print(
+            print.out(
                 "\x1b[1;31mERR:\x1b[22m {t} "
                     ++ "\x1b[3;35m(line \x1b[4;36m{d}\x1b[24;35m, "
                     ++ "column \x1b[4;36m{d}\x1b[24;35m)\x1b[0m\n",
                 .{err.value.?, line_no, column }
             );
             const pre = line[0..line.len-tok.len];
-            std.debug.print("\t{s}\x1b[5;1;33m{s}\n", .{ pre, line[pre.len..pre.len+tok.len] });
-            std.debug.print("\t\x1b[34m{s}\x1b[0m\n", .{ b: {
+            print.out("\t{s}\x1b[5;1;33m{s}\n", .{ pre, line[pre.len..pre.len+tok.len] });
+            print.out("\t\x1b[34m{s}\x1b[0m\n", .{ b: {
                 var res = try std.ArrayList(u8).initCapacity(alloc, 0);
                 defer res.deinit(alloc);
                 var do_underline = false;
@@ -141,9 +147,4 @@ pub fn validate_and_print(source:[]const u8) !void {
             }});
         },
     }
-
-    std.debug.print("nodes in main arena: {d}\n", .{arena.state.end_index});
-    if (!arena.reset(.free_all)) @panic("failed to reset arena");
-
-    arena.deinit();
 }
