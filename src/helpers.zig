@@ -87,14 +87,15 @@ pub fn validate_and_print(source:[]const u8) !void {
         arena.deinit();
     }
 
+    //just do a basic syntax validation
     const re_assembled = try initial_validation(alloc, source);
     switch (re_assembled) {
-        .ok => |res| {
+        .ok => |res| { //if no problems, print it line-by-line
             for (0..res.line_count) |i| try print.out("{s}\n", .{res.lines[i]});
         },
-        .err => |err| {
+        .err => |err| { //otherwise print error
+            //parse the original source into an arraylist of lines
             var og_lines = try std.ArrayList([]const u8).initCapacity(alloc, 0); 
-
             var line_start:usize, var line_count:usize = .{ 0, 1 };
             for (source, 0..) |b, i| if (b == '\n') {
                 const line = source[line_start..i];
@@ -104,19 +105,28 @@ pub fn validate_and_print(source:[]const u8) !void {
                 line_start = i+1;
             };
 
+            //get the tokenizer from the returned iterator
             var tokenizer = err.data.tokenizer;
+            //get the line and column of error
             const line_no, const column = .{ tokenizer.line-1, tokenizer.column-1 };
+            //go to that line
             const line = og_lines.items[line_no];
+            //get the token as a string
             const tok = tokenizer.token_buffer.items[0..];
+            //pretty print the error and line number + column
             try print.out(
                 "\x1b[1;31mERR:\x1b[22m {t} "
                     ++ "\x1b[3;35m(line \x1b[4;36m{d}\x1b[24;35m, "
                     ++ "column \x1b[4;36m{d}\x1b[24;35m)\x1b[0m\n",
                 .{err.value.?, line_no, column }
             );
+            //print everything on the line before the error
             const pre = line[0..line.len-tok.len];
             try print.out("\t{s}\x1b[5;1;33m{s}\n", .{ pre, line[pre.len..pre.len+tok.len] });
+            //print the part that caused an error
             try print.out("\t\x1b[34m{s}\x1b[0m\n", .{ b: {
+                //make a nicely formated string containing the invalid thing and 
+                //  and underline the line (excluding leading whitespace)
                 var res = try std.ArrayList(u8).initCapacity(alloc, 0);
                 defer res.deinit(alloc);
                 var do_underline = false;
@@ -126,6 +136,7 @@ pub fn validate_and_print(source:[]const u8) !void {
                 }
                 try res.appendSlice(alloc, "\x1b[1;36m");
                 for (0..tok.len) |_| try res.append(alloc, '^');
+                //return a reowned slice containing the result
                 break :b try res.toOwnedSlice(alloc);
             }});
         },
