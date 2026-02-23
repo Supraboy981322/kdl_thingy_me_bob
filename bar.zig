@@ -290,27 +290,6 @@ fn is_alpha(b:u8) bool {
     return (b >= 'a' and b <= 'z') or (b >= 'A' and b <= 'Z');
 }
 
-fn err_out(
-    itr:kdl.StreamIterator,
-    e: anyerror,
-    source:[]const u8
-) void {
-    const tokenizer = itr.tokenizer;
-    const tok = itr.current_token orelse {
-        std.debug.print(
-            "error: ({t}) line {d} column {d}\n",
-            .{e, tokenizer.line, tokenizer.column}
-        );
-        std.process.exit(1);
-    };
-    std.debug.print(
-        "error: ({t}) {s}\n",
-        .{e, source[tokenizer.pos-tok.text_len..tokenizer.pos]}
-    );
-    std.process.exit(1);
-
-}
-
 fn indent_line(
     alloc:std.mem.Allocator,
     d:u16,
@@ -320,13 +299,6 @@ fn indent_line(
     defer whitespace.deinit(alloc);
     for (0..d) |_| try whitespace.appendSlice(alloc, "  ");
     return try std.fmt.allocPrint(alloc, "{s}{s}", .{whitespace.items, str});
-}
-
-fn idx_no_whitespace(str:[]const u8, i:usize) usize {
-    return switch(str[i]) {
-        ' ', '\t', '\n', '\r' => idx_no_whitespace(str, i+1),
-        else => i,
-    };
 }
 
 fn trim_space(in:[]const u8) []const u8 {
