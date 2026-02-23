@@ -1,5 +1,6 @@
 const std = @import("std");
 const kdl = @import("kdl");
+const hlp = @import("helpers.zig");
 
 // TODO: replace main() with something otherthan testing 
 pub fn main() !void {
@@ -13,7 +14,7 @@ pub fn main() !void {
     var line_start:usize, var line_count:usize = .{ 0, 1 };
     for (source, 0..) |b, i| if (b == '\n') {
         const line = source[line_start..i];
-        if (trim_space(line).len == 0) continue;
+        if (hlp.trim_space(line).len == 0) continue;
         try og_lines.append(alloc, line);
         line_count += 1;
         line_start = i+1;
@@ -168,7 +169,7 @@ fn initial_validation(
                 );
                
                 //add indentation to the chunk 
-                const chunk = try indent_line(alloc, itr.depth, raw_chunk);
+                const chunk = try hlp.indent_line(alloc, itr.depth, raw_chunk);
 
                 //add the chunk
                 try chunks.append(alloc, @constCast(chunk));
@@ -177,7 +178,7 @@ fn initial_validation(
             //add brace with indentation if the depth changed
             .end_node => if (previous_depth != itr.depth) {
                 //add indentation to chunk
-                const line_space = try indent_line(alloc, itr.depth, "}");
+                const line_space = try hlp.indent_line(alloc, itr.depth, "}");
                 //format the chunk
                 const chunk = try std.fmt.allocPrint(
                     alloc, colors.symbol ++ "{s}\x1b[0m\n", .{ line_space }
@@ -189,7 +190,7 @@ fn initial_validation(
             //the value of a node
             .argument => |arg| {
                 const v:kdl.Value = arg.value;
-                //switch on the value
+                //switch on the type
                 const v_str = try switch (v) {
                     .string => |a| std.fmt.allocPrint(
                         alloc, colors.string ++ "\"{s}\"", .{itr.getString(a)}
@@ -232,7 +233,7 @@ fn initial_validation(
                 const pre = chunks.pop().?;
     
                 //add the type string with indentation 
-                try chunks.append(alloc, @constCast(try indent_line(
+                try chunks.append(alloc, @constCast(try hlp.indent_line(
                     alloc, previous_depth, type_str
                 )));
                 
@@ -280,7 +281,7 @@ fn initial_validation(
                 //add allocated line string
                 try res.append(allocator, try allocator.dupe(u8, line));
                 //add line with stripped ansi
-                const no_ansi = try strip_ansi(allocator, line);
+                const no_ansi = try hlp.strip_ansi(allocator, line);
                 try stripped.append(allocator, try allocator.dupe(u8, no_ansi));
                 //move line start to next line 
                 line_start = i+1;
@@ -302,61 +303,9 @@ fn initial_validation(
             .line_count = lines.len,
             .no_ansi = .{
                 .lines = stripped_lines,
-                .strung = try strip_ansi(allocator, strung),
+                .strung = try hlp.strip_ansi(allocator, strung),
             },
             .strung = strung,
         },
     };
-}
-
-fn strip_ansi(
-    alloc:std.mem.Allocator,
-    in: []const u8
-) ![]const u8 {
-    var res = try std.ArrayList(u8).initCapacity(alloc, 0);
-    defer res.deinit(alloc);
-    var ign = false;
-    for (in) |b| {
-        if (b == '\x1b')
-            ign = true
-        else if (ign and is_alpha(b))
-            ign = false
-        else if (!ign)
-            try res.append(alloc, b);
-    }
-    return res.toOwnedSlice(alloc);
-}
-
-fn is_alpha(b:u8) bool {
-    return (b >= 'a' and b <= 'z') or (b >= 'A' and b <= 'Z');
-}
-
-fn indent_line(
-    alloc:std.mem.Allocator,
-    d:u16,
-    str:[]const u8
-) ![]const u8 {
-    var whitespace = try std.ArrayList(u8).initCapacity(alloc, 0);
-    defer whitespace.deinit(alloc);
-    for (0..d) |_| try whitespace.appendSlice(alloc, "  ");
-    return try std.fmt.allocPrint(alloc, "{s}{s}", .{whitespace.items, str});
-}
-
-fn trim_space(in:[]const u8) []const u8 {
-    var s:usize = 0;
-    const e = loop: for (0..in.len) |i| switch (in[i]) {
-        ' ', '\t', '\n', '\r' => if (s > 0) break :loop i,
-        else => { if (s == 0) s = i; }
-    } else in.len;
-    return in[s..e];
-}
-
-fn str_contains(str:[]const u8, n:u8) bool {
-    return for (str) |b| {
-        if (b == n) break true;
-    } else false;
-}
-
-fn is_whitespace(b:u8) bool {
-    return str_contains(" \r\n\t", b);
 }
