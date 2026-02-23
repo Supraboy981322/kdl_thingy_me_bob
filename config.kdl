@@ -8,7 +8,7 @@ server {
 customization {
   name "foo"
   css {
-    disable_default #true
+    disable_default true
   }
 }
 
