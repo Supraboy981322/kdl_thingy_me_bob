@@ -1,6 +1,7 @@
 const std = @import("std");
 const kdl = @import("kdl");
 
+// TODO: replace main() with something otherthan testing 
 pub fn main() !void {
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     const alloc = arena.allocator();
