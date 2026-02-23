@@ -17,17 +17,22 @@ pub fn main() !void {
     };
 
     const re_assembled = try initial_validation(alloc, source);
-    for (0..if (line_count > re_assembled.len) re_assembled.len else line_count) |i| {
+    switch (re_assembled) {
+        .ok => |res| {
+            for (0..if (line_count > res.line_count) res.line_count else line_count) |i| {
 
-        const og = if (og_lines.items[i][0] == '\n')
-            og_lines.items[i][1..]
-        else
-            og_lines.items[i];
+                const og = if (og_lines.items[i][0] == '\n')
+                    og_lines.items[i][1..]
+                else
+                    og_lines.items[i];
 
-        const new = re_assembled[i];
-        std.debug.print(
-            "  \x1b[32mres:\x1b[0m\t{s}\n  \x1b[31mog:\x1b[0m \t{s}\n", .{new, og}
-        );
+                const new = res.lines[i];
+                std.debug.print(
+                    "  \x1b[32mres:\x1b[0m\t{s}\n  \x1b[31mog:\x1b[0m \t{s}\n", .{new, og}
+                );
+            }
+        },
+        .err => @panic("TODO: err"),
     }
 
     std.debug.print("main memory leakage: {d}\n", .{arena.state.end_index});
@@ -37,25 +42,28 @@ pub fn main() !void {
 }
 
 pub const validation_result = union(enum(i8)) {
+    ok: struct {
+        lines: []const []const u8 = &.{},
+        line_count: usize = 0,
+        no_ansi: struct {
+            lines:[]const []const u8 = &.{},
+            strung:[]const u8 = "",
+        } = .{},
+        strung: []const u8 = "",
+    },
     err: struct {
         value: ?anyerror = null,
         data: kdl.StreamIterator, 
     },
-    ok: struct {
-        result: []const []const u8 = &.{},
-        line_count: usize = 0,
-        no_ansi: []const []const u8 = &.{},
-        strung: []const u8 = "",
-    },
 };
 
 const colors = struct {
-    symbol:str = "\x1b[1;38;2;115;115;115m",
-    typename:str = "\x1b[3;1;36m",
-    class:str = "\x1b[0;34m",
-    num:str = "\x1b[38;2;255;165;0m",
-    string:str = "\x1b[32m",
-    bool:str = "\x1b[33m",
+    pub const symbol:str = "\x1b[1;38;2;115;115;115m";
+    pub const typename:str = "\x1b[3;1;36m";
+    pub const class:str = "\x1b[0;34m";
+    pub const num:str = "\x1b[38;2;255;165;0m";
+    pub const string:str = "\x1b[32m";
+    pub const @"bool":str = "\x1b[33m";
     const str = []const u8;
 };
 
@@ -155,7 +163,7 @@ fn initial_validation(
                         alloc, colors.num ++ "{d}", .{a.value}
                     ),
                     .boolean => |a| std.fmt.allocPrint(
-                        alloc, colors.bool ++ "#{}", .{a}
+                        alloc, colors.@"bool" ++ "#{}", .{a}
                     ),
                     .null_value, .nan_value, .positive_inf, .negative_inf => continue :loop,
                 };
@@ -231,7 +239,8 @@ fn initial_validation(
                 const line = strung.items[line_start..i];
                 //add allocated line string
                 try res.append(alloc, try allocator.dupe(u8, line));
-                try stripped.append(alloc, try allocator.dupe(u8, try strip_ansi(line)));
+                const no_ansi = try strip_ansi(allocator, line);
+                try stripped.append(alloc, try allocator.dupe(u8, no_ansi));
                 line_start = i+1;
             },
             else => {},
@@ -246,11 +255,11 @@ fn initial_validation(
 
     return .{ 
         .ok = .{ 
-            .result = lines,
+            .lines = lines,
             .line_count = lines.len,
             .no_ansi = .{
                 .lines = stripped_lines,
-                .strung = try strip_ansi(strung),
+                .strung = try strip_ansi(allocator, strung),
             },
             .strung = strung,
         },
@@ -260,7 +269,7 @@ fn initial_validation(
 fn strip_ansi(
     alloc:std.mem.Allocator,
     in: []const u8
-) []const u8 {
+) ![]const u8 {
     var res = try std.ArrayList(u8).initCapacity(alloc, 0);
     var ign = false;
     for (in) |b| switch (b) {
