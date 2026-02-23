@@ -87,29 +87,23 @@ pub fn validate_and_print(source:[]const u8) !void {
         arena.deinit();
     }
 
-    var og_lines = try std.ArrayList([]const u8).initCapacity(alloc, 0); 
-
-    var line_start:usize, var line_count:usize = .{ 0, 1 };
-    for (source, 0..) |b, i| if (b == '\n') {
-        const line = source[line_start..i];
-        if (trim_space(line).len == 0) continue;
-        try og_lines.append(alloc, line);
-        line_count += 1;
-        line_start = i+1;
-    };
-
     const re_assembled = try initial_validation(alloc, source);
     switch (re_assembled) {
         .ok => |res| {
-            const larger_line_count =
-                if (line_count > res.line_count)
-                    res.line_count
-                else
-                    line_count;
-
-            for (0..larger_line_count) |i| try print.out("{s}\n", .{res.lines[i]});
+            for (0..res.line_count) |i| try print.out("{s}\n", .{res.lines[i]});
         },
         .err => |err| {
+            var og_lines = try std.ArrayList([]const u8).initCapacity(alloc, 0); 
+
+            var line_start:usize, var line_count:usize = .{ 0, 1 };
+            for (source, 0..) |b, i| if (b == '\n') {
+                const line = source[line_start..i];
+                if (trim_space(line).len == 0) continue;
+                try og_lines.append(alloc, line);
+                line_count += 1;
+                line_start = i+1;
+            };
+
             var tokenizer = err.data.tokenizer;
             const line_no, const column = .{ tokenizer.line-1, tokenizer.column-1 };
             const line = og_lines.items[line_no];
