@@ -191,20 +191,12 @@ fn initial_validation(
                 //get the key for this value 
                 const pre = chunks.pop().?;
                 
-                // TODO: make sure this can be removed
-                // determine the amount of indentation
-                // const space_count = for (pre, 0..) |b, i| (if (b != ' ') break i) else 0;
-                
                 //add the type string with indentation 
                 try chunks.append(alloc, @constCast(try indent_line(
-                    // TODO: make sure this can be removed
-                    // alloc, @intCast(space_count/2), type_str 
                     alloc, previous_depth, type_str
                 )));
                 
                 //add-back the key chunk (popped value) with indentation removed
-                // TODO: make sure next line can be removed
-                // try chunks.append(alloc, pre[space_count..pre.len]);s
                 try chunks.append(alloc, pre[previous_depth*2..pre.len]);
 
                 //add the value chunk
