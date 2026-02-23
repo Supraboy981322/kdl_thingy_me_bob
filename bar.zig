@@ -21,16 +21,22 @@ pub fn main() !void {
     const re_assembled = try initial_validation(alloc, source);
     switch (re_assembled) {
         .ok => |res| {
-            for (0..if (line_count > res.line_count) res.line_count else line_count) |i| {
-
-                const og = if (og_lines.items[i][0] == '\n')
-                    og_lines.items[i][1..]
+            const larger_line_count =
+                if (line_count > res.line_count)
+                    res.line_count
                 else
-                    og_lines.items[i];
+                    line_count;
 
-                const new = res.lines[i];
+            for (0..larger_line_count) |i| {
+                const cur = .{
+                    .og = og_lines.items[i],
+                    .new = res.lines[i],
+                };
+
+                const og = if (cur.og[0] == '\n') cur.og[1..] else cur.og;
+
                 std.debug.print(
-                    "  \x1b[32mres:\x1b[0m\t{s}\n  \x1b[31mog:\x1b[0m \t{s}\n", .{new, og}
+                    "  \x1b[32mres:\x1b[0m\t{s}\n  \x1b[31mog:\x1b[0m \t{s}\n", .{cur.new, og}
                 );
             }
         },
