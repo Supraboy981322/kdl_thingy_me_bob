@@ -15,5 +15,5 @@ customization {
 notes {
   max_size "10MB"
   compression "brotli"
-  use_encryption #true
+  use_encryption #null
 }

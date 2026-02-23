@@ -98,6 +98,7 @@ const colors = struct {
     pub const num:str = "\x1b[38;2;255;165;0m";
     pub const string:str = "\x1b[32m";
     pub const @"bool":str = "\x1b[33m";
+    pub const other = "\x1b[36m";
     const str = []const u8;
 };
 
@@ -128,7 +129,7 @@ fn initial_validation(
     var previous_depth:u16 = 0;
 
     //iterate over source 
-    loop: while (
+    while (
         //returns alternate struct on error
         itr.next() catch |e| return .{
             .err = .{
@@ -149,7 +150,7 @@ fn initial_validation(
                 const is_class = cur_tok.type == .open_brace;
 
                 //determine which separator is used
-                const separator = if (!is_class) " " else b: {
+                const separator = if (!is_class) "" else b: {
                     break :b colors.symbol ++ "{\x1b[0m\n";
                 };
 
@@ -194,7 +195,7 @@ fn initial_validation(
                         alloc, colors.string ++ "\"{s}\"", .{itr.getString(a)}
                     ),
                     .integer => |a| std.fmt.allocPrint(
-                        alloc, colors.num ++ "\x1b[38;2;255;165;0m{d}", .{a}
+                        alloc, colors.num ++ "{d}", .{a}
                     ),
                     .float => |a| std.fmt.allocPrint(
                         alloc, colors.num ++ "{d}", .{a.value}
@@ -202,7 +203,17 @@ fn initial_validation(
                     .boolean => |a| std.fmt.allocPrint(
                         alloc, colors.@"bool" ++ "#{}", .{a}
                     ),
-                    .null_value, .nan_value, .positive_inf, .negative_inf => continue :loop,
+                    .null_value, .nan_value, .positive_inf, .negative_inf => b: {
+                        break :b std.fmt.allocPrint(
+                            alloc, colors.other ++ "#{s}", .{ switch (v) {
+                                .null_value => "null",
+                                .nan_value => "nan",
+                                .positive_inf => "inf",
+                                .negative_inf => "-inf",
+                                else => @panic("WHERE THE HELL DID THIS TOKEN COME FROM?"),
+                            }}
+                        );
+                    }
                 };
 
                 //format the chunk
@@ -219,7 +230,7 @@ fn initial_validation(
 
                 //get the key for this value 
                 const pre = chunks.pop().?;
-                
+    
                 //add the type string with indentation 
                 try chunks.append(alloc, @constCast(try indent_line(
                     alloc, previous_depth, type_str
@@ -338,4 +349,14 @@ fn trim_space(in:[]const u8) []const u8 {
         else => { if (s == 0) s = i; }
     } else in.len;
     return in[s..e];
+}
+
+fn str_contains(str:[]const u8, n:u8) bool {
+    return for (str) |b| {
+        if (b == n) break true;
+    } else false;
+}
+
+fn is_whitespace(b:u8) bool {
+    return str_contains(" \r\n\t", b);
 }
