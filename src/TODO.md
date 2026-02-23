@@ -1,0 +1,16 @@
+- [ ] handle multi-line strings
+- [ ] handle properties
+- [ ] attempt to decode into struct
+    - [ ] ***good*** error handling (likely meaning manual decoding, stupid library)
+    - [ ] get struct from zon input
+        - [ ] stdin
+        - [ ] file
+        - [ ] arg
+- [ ] write to file
+- [ ] read from...
+    - [ ] file
+    - [ ] stdin
+    - [ ] arg
+- [ ] detect non-terminal
+- [ ] detect non-ansi compatible terminal
+- [ ] cli arguments
