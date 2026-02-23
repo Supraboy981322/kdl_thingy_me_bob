@@ -238,9 +238,9 @@ fn initial_validation(
             '\n' => {
                 const line = strung.items[line_start..i];
                 //add allocated line string
-                try res.append(alloc, try allocator.dupe(u8, line));
+                try res.append(allocator, try allocator.dupe(u8, line));
                 const no_ansi = try strip_ansi(allocator, line);
-                try stripped.append(alloc, try allocator.dupe(u8, no_ansi));
+                try stripped.append(allocator, try allocator.dupe(u8, no_ansi));
                 line_start = i+1;
             },
             else => {},
