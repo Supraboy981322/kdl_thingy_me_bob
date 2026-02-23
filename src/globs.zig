@@ -17,7 +17,7 @@ pub const validation_result = union(enum(i8)) {
     },
 };
 
-const colors = struct {
+pub const colors = struct {
     pub const symbol:str = "\x1b[1;38;2;115;115;115m";
     pub const typename:str = "\x1b[3;1;36m";
     pub const class:str = "\x1b[0;34m";

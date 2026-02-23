@@ -1,11 +1,12 @@
 const std = @import("std");
 const kdl = @import("kdl");
-const hlp = @import("hlp");
+
+const hlp = @import("helpers.zig");
 const globs = @import("globs.zig");
 
 const colors = globs.colors;
 
-fn initial_validation(
+pub fn initial_validation(
     allocator:std.mem.Allocator,
     source:[]const u8
 ) !globs.validation_result {
