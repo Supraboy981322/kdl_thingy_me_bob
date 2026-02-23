@@ -77,11 +77,9 @@ pub fn print_lines(lines:[]const []const u8) !void {
     for (lines) |l| try print.out("{s}\n", .{l});
 }
 
-pub fn validate_and_print() !void {
+pub fn validate_and_print(source:[]const u8) !void {
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     const alloc = arena.allocator();
-
-    const source = @embedFile("config.kdl");
 
     var og_lines = try std.ArrayList([]const u8).initCapacity(alloc, 0); 
 

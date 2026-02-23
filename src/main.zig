@@ -8,5 +8,5 @@ const initial_validation = validation.initial_validation;
 
 // TODO: replace main() with something otherthan testing 
 pub fn main() !void {
-    try hlp.validate_and_print();
+    try hlp.validate_and_print(@embedFile("config.kdl"));
 }
