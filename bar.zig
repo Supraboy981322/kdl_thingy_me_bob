@@ -36,22 +36,27 @@ pub fn main() !void {
     arena.deinit();
 }
 
-pub const validation_result = struct {
-    err: ?anyerror = null,
-    data: if (Self.err) struct {
-        result: []const []const u8 = .{},
+pub const validation_result = union(enum(i8)) {
+    err: struct {
+        value: ?anyerror = null,
+        data: kdl.StreamIterator, 
+    },
+    ok: struct {
+        result: []const []const u8 = &.{},
         line_count: usize = 0,
-        no_ansi: []const []const u8 = .{},
+        no_ansi: []const []const u8 = &.{},
         strung: []const u8 = "",
-    } else kdl.StreamIterator = .{},
-    const Self = @This();
+    },
 };
 
 const colors = struct {
-    const str = []const u8;
     symbol:str = "\x1b[1;38;2;115;115;115m",
     typename:str = "\x1b[3;1;36m",
     class:str = "\x1b[0;34m",
+    num:str = "\x1b[38;2;255;165;0m",
+    string:str = "\x1b[32m",
+    bool:str = "\x1b[33m",
+    const str = []const u8;
 };
 
 fn initial_validation(
@@ -80,8 +85,11 @@ fn initial_validation(
     //iterate over source 
     loop: while (
         //returns alternate struct on error
-        itr.next() catch |e| {
-            return .{ .err = e, .data = itr };
+        itr.next() catch |e| return .{
+            .err = .{
+                .value = e,
+                .data = itr,
+            },
         }
     ) |event| {
         //switch on "event" token
@@ -107,13 +115,13 @@ fn initial_validation(
                 else
                     "\x1b[35m";
 
-                //construct the line with no indentation 
+                //construct the chunk with no indentation 
                 const raw_chunk = try std.fmt.allocPrint(
                     alloc, "{s}{s}\x1b[0m {s}",
                     .{ line_pre, name_str, separator }
                 );
                
-                //add indentation to the line
+                //add indentation to the chunk 
                 const chunk = try indent_line(alloc, itr.depth, raw_chunk);
 
                 //add the chunk
@@ -122,69 +130,152 @@ fn initial_validation(
 
             //add brace with indentation if the depth changed
             .end_node => if (previous_depth != itr.depth) {
-                //add indentations to line
+                //add indentation to chunk
                 const line_space = try indent_line(alloc, itr.depth, "}");
-                const line = try std.fmt.allocPrint(
-                    alloc, "\x1b[1;38;2;115;115;115m{s}\x1b[0m\n", .{ line_space }
+                //format the chunk
+                const chunk = try std.fmt.allocPrint(
+                    alloc, colors.symbol ++ "{s}\x1b[0m\n", .{ line_space }
                 );
-                try chunks.append(alloc, @constCast(line));
+                //add the chunk
+                try chunks.append(alloc, @constCast(chunk));
             },
+
+            //the value of a node
             .argument => |arg| {
                 const v:kdl.Value = arg.value;
+                //switch on the value
                 const v_str = try switch (v) {
                     .string => |a| std.fmt.allocPrint(
-                        alloc, "\x1b[32m\"{s}\"", .{itr.getString(a)}
+                        alloc, colors.string ++ "\"{s}\"", .{itr.getString(a)}
                     ),
                     .integer => |a| std.fmt.allocPrint(
-                        alloc, "\x1b[38;2;255;165;0m{d}", .{a}
+                        alloc, colors.num ++ "\x1b[38;2;255;165;0m{d}", .{a}
                     ),
                     .float => |a| std.fmt.allocPrint(
-                        alloc, "\x1b[38;2;255;165;0m{d}", .{a.value}
+                        alloc, colors.num ++ "{d}", .{a.value}
                     ),
                     .boolean => |a| std.fmt.allocPrint(
-                        alloc, "\x1b[38;2;255;165;0m#{}", .{a}
+                        alloc, colors.bool ++ "#{}", .{a}
                     ),
                     .null_value, .nan_value, .positive_inf, .negative_inf => continue :loop,
                 };
-                const chunk = try std.fmt.allocPrint(alloc, "{s}\x1b[0m\n", .{v_str});
-                const type_str:[]u8 = try std.fmt.allocPrint(
-                    alloc, "\x1b[1;38;2;115;115;115m(\x1b[3;1;36m{s}\x1b[0;38;2;115;115;115m)\x1b[0m", .{@tagName(v)}
+
+                //format the chunk
+                const chunk = try std.fmt.allocPrint(
+                    alloc, "{s}\x1b[0m\n", .{v_str}
                 );
+
+                //format the type string 
+                const type_str:[]u8 = try std.fmt.allocPrint(
+                    alloc, colors.symbol ++ "(" ++ colors.typename ++ "{s}"
+                        ++ colors.symbol ++ ")\x1b[0m",
+                    .{@tagName(v)}
+                );
+
+                //get the key for this value 
                 const pre = chunks.pop().?;
-                const space_count = for (pre, 0..) |b, i| (if (b != ' ') break i) else 0;
-                try chunks.append(alloc, @constCast(try line_with_space(
-                    alloc, @intCast(space_count/2), type_str
+                
+                // TODO: make sure this can be removed
+                // determine the amount of indentation
+                // const space_count = for (pre, 0..) |b, i| (if (b != ' ') break i) else 0;
+                
+                //add the type string with indentation 
+                try chunks.append(alloc, @constCast(try indent_line(
+                    // TODO: make sure this can be removed
+                    // alloc, @intCast(space_count/2), type_str 
+                    alloc, previous_depth, type_str
                 )));
-                try chunks.append(alloc, pre[space_count..pre.len]);
+                
+                //add-back the key chunk (popped value) with indentation removed
+                // TODO: make sure next line can be removed
+                // try chunks.append(alloc, pre[space_count..pre.len]);s
+                try chunks.append(alloc, pre[previous_depth*2..pre.len]);
+
+                //add the value chunk
                 try chunks.append(alloc, @constCast(chunk));
             },
+
+            // TODO: this
             .property => |prop| {
                 _ = prop;
                 //const key = itr.getString(prop.name);
                 //std.debug.print("Property: {s}\n", .{key});
             },
         }
+        //set the next previous depth to the current depth 
         previous_depth = itr.depth;
     }
 
     //construct []const []const u8 of lines using provided allocator
-    const lines = b: {
+    const lines, const strung, const stripped_lines = b: {
+        //create an array list to string together the chunks 
         var strung = try std.ArrayList(u8).initCapacity(alloc, 0);
         defer strung.deinit(allocator);
-        for (chunks.items) |chunk| try strung.appendSlice(alloc, chunk);
-        var r = try std.ArrayList([]u8).initCapacity(alloc, 0);
-        defer r.deinit(allocator);
+
+        //string a newly allocated string for each chunk together
+        for (chunks.items) |chunk| try strung.appendSlice(alloc, try allocator.dupe(u8, chunk));
+
+        //create array list to hold the resulting array of lines
+        var res = try std.ArrayList([]u8).initCapacity(alloc, 0);
+        defer res.deinit(allocator);
+        //an array list with the ansi striped 
+        var stripped = try std.ArrayList([]u8).initCapacity(alloc, 0);
+        defer stripped.deinit(allocator);
+
+        //keeps track of index of line start 
         var line_start:usize = 0;
+        
+        //range over strung chunks with index 
         for (strung.items, 0..) |b, i| switch (b) {
             '\n' => {
-                try r.append(alloc, try allocator.dupe(u8, strung.items[line_start..i]));
+                const line = strung.items[line_start..i];
+                //add allocated line string
+                try res.append(alloc, try allocator.dupe(u8, line));
+                try stripped.append(alloc, try allocator.dupe(u8, try strip_ansi(line)));
                 line_start = i+1;
             },
             else => {},
         };
-        break :b try r.toOwnedSlice(allocator);
+        
+        break :b .{
+            try res.toOwnedSlice(allocator),
+            try strung.toOwnedSlice(allocator),
+            try stripped.toOwnedSlice(allocator),
+        };
     };
-    return try allocator.dupe([]const u8, lines);
+
+    return .{ 
+        .ok = .{ 
+            .result = lines,
+            .line_count = lines.len,
+            .no_ansi = .{
+                .lines = stripped_lines,
+                .strung = try strip_ansi(strung),
+            },
+            .strung = strung,
+        },
+    };
+}
+
+fn strip_ansi(
+    alloc:std.mem.Allocator,
+    in: []const u8
+) []const u8 {
+    var res = try std.ArrayList(u8).initCapacity(alloc, 0);
+    var ign = false;
+    for (in) |b| switch (b) {
+        '\x1b' => ign = true,
+        else => {
+            if (ign and is_alpha(b)) ign = false else {
+                try res.append(alloc, b);
+            }
+        },
+    };
+    return res.toOwnedSlice(alloc);
+}
+
+fn is_alpha(b:u8) bool {
+    return (b >= 'a' and b <= 'z') or (b >= 'A' and b <= 'Z');
 }
 
 fn err_out(
@@ -208,7 +299,7 @@ fn err_out(
 
 }
 
-fn line_with_space(
+fn indent_line(
     alloc:std.mem.Allocator,
     d:u16,
     str:[]const u8
