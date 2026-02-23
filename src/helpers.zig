@@ -107,18 +107,7 @@ pub fn validate_and_print(source:[]const u8) !void {
                 else
                     line_count;
 
-            for (0..larger_line_count) |i| {
-                const cur = .{
-                    .og = og_lines.items[i],
-                    .new = res.lines[i],
-                };
-
-                const og = if (cur.og[0] == '\n') cur.og[1..] else cur.og;
-
-                try print.out(
-                    "  \x1b[32mres:\x1b[0m\t{s}\n  \x1b[31mog:\x1b[0m \t{s}\n", .{cur.new, og}
-                );
-            }
+            for (0..larger_line_count) |i| try print.out("{s}\n", .{res.lines[i]});
         },
         .err => |err| {
             var tokenizer = err.data.tokenizer;
