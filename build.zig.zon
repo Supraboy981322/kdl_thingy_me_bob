@@ -1,0 +1,12 @@
+.{
+    .name = .moreTmp,
+    .version = "0.15.2",
+    .dependencies = .{
+        .kdl = .{
+            .url = "https://github.com/AnimeCatGirlIndustries/kdl-zig/archive/main.tar.gz",
+            .hash = "kdl-0.0.4-kuYJRYQtBwDr5JGUWKq0THB5AYPGyQ4B6vW55ZqnDBJ2",
+        },
+    },
+    .paths = .{""},
+    .fingerprint = 0xeaa619f0a9421aa5,
+}

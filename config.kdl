@@ -1,0 +1,19 @@
+server {
+  port 8795
+  log {
+    bar "debug"
+    file "log.json"
+  }
+}
+customization {
+  name "foo"
+  css {
+    disable_default #true
+  }
+}
+
+notes {
+  max_size "10MB"
+  compression "brotli"
+  use_encryption #true
+}
