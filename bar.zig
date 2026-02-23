@@ -302,13 +302,15 @@ fn strip_ansi(
     in: []const u8
 ) ![]const u8 {
     var res = try std.ArrayList(u8).initCapacity(alloc, 0);
+    defer res.deinit(alloc);
     var ign = false;
     for (in) |b| {
-        if (!ign and b != '\x1b')  try res.append(alloc, b);
-        switch (b) {
-            '\x1b' => ign = true,
-            else => { if (ign and is_alpha(b)) ign = false; },
-        }
+        if (b == '\x1b')
+            ign = true
+        else if (ign and is_alpha(b))
+            ign = false
+        else if (!ign)
+            try res.append(alloc, b);
     }
     return res.toOwnedSlice(alloc);
 }
