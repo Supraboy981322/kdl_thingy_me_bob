@@ -31,7 +31,7 @@ pub fn init() !void {
                     file = try alloc.dupe(u8, args[i]);
                     next_used = true;
                 } else {
-                    try hlp.print.err("used file arg but no file provided\n", .{}); 
+                    try hlp.print.err("provided file arg but no value provided\n", .{}); 
                     std.process.exit(1);
                 }
             }
@@ -41,21 +41,22 @@ pub fn init() !void {
 
 pub fn main() !void {
     try init();
-    if (file == null) {
-        try hlp.print.err("no file provided\n", .{});
-        std.process.exit(1);
-    }
-
     const alloc = std.heap.page_allocator;
-
-    const source = b: {
-        var fi = std.fs.cwd().openFile(file.?, .{}) catch |e| {
+    const source = if (file) |f| b:{
+        var fi = std.fs.cwd().openFile(f, .{}) catch |e| {
             try hlp.print.err("failed to open file: {t}\n", .{e});
             std.process.exit(1);
         };
         defer fi.close();
         var re = fi.reader(&.{});
         break :b try re.interface.allocRemaining(alloc, .unlimited);
+    } else b:{
+        var wr = std.Io.Writer.Allocating.init(alloc);
+        defer wr.deinit();
+        var stdin = std.fs.File.stdin(); 
+        var re = stdin.reader(&.{});
+        _ = try re.interface.streamRemaining(&wr.writer);
+        break :b try wr.toOwnedSlice();
     };
 
     try hlp.validate_and_print(source);
