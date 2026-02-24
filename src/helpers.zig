@@ -66,7 +66,7 @@ pub const print = struct {
     }
     pub fn err(comptime fmt:[]const u8, args:anytype) !void {
         var buf:[1024]u8 = undefined;
-        var wr = std.fs.File.sterr().writer(&buf);
+        var wr = std.fs.File.stderr().writer(&buf);
         const stderr = &wr.interface;
         try stderr.print(fmt, args);
         try stderr.flush();
