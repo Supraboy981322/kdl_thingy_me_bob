@@ -30,20 +30,24 @@ pub fn init() !void {
                 if (args.len > i) {
                     file = try alloc.dupe(u8, args[i]);
                     next_used = true;
+                } else {
+                    try hlp.print.err("used file arg but no file provided\n", .{}); 
+                    std.process.exit(1);
                 }
             }
         }
     }
 }
 
-// TODO: replace main() with something otherthan testing 
 pub fn main() !void {
-    const alloc = std.heap.page_allocator;
     try init();
     if (file == null) {
         try hlp.print.err("no file provided\n", .{});
         std.process.exit(1);
     }
+
+    const alloc = std.heap.page_allocator;
+
     const source = b: {
         var fi = std.fs.cwd().openFile(file.?, .{}) catch |e| {
             try hlp.print.err("failed to open file: {t}\n", .{e});
